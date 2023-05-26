@@ -25,6 +25,8 @@ class Gregg(object):
         self.interpret_button.pack(side='left')
         self.speak_button = Button(self.frame, text='speak', command=self.speak)
         self.speak_button.pack(side='left')
+        self.train_button = Button(self.frame, text='train', command=lambda:self.open_label_enter(0))
+        self.train_button.pack(side='left')
 
         # set up canvas
         self.canvas = Canvas(self.window, bg='white', width=WIDTH, height=HEIGHT)
@@ -140,6 +142,22 @@ class Gregg(object):
                 self.canvas.create_line(x_prev, y_prev, phoneme[index][0], phoneme[index][1],
                         width=LINE_WIDTH, fill=colors[color_index],
                         capstyle=ROUND, smooth=TRUE, splinesteps=36)
+                
+    # create a popup window to enter training labels
+    def open_label_enter(self, label_num):
+        label_window = Toplevel(self.window)
+        directions_label = Label(label_window, text=f'Label for phoneme {label_num}:')
+        directions_label.pack(side='top')
+        label_entry = Entry(label_window)
+        label_entry.pack(side='top', fill='x')
+        label_entry.focus_set()
+        label_entry.bind('<Return>', lambda event, label_window=label_window: self.close_label_enter(label_window))
+        enter_button = Button(label_window, text="Enter", command=lambda:self.close_label_enter(label_window))
+        enter_button.pack(side='bottom')
+
+    # close the label entry popup window
+    def close_label_enter(self, window, event=None):
+        window.destroy()
 
 # start Gregg recognition tool
 if __name__ == '__main__':
