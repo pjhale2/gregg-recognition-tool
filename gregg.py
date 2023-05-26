@@ -1,9 +1,12 @@
+import math
 import tkinter as tk
 from tkinter import *
 
-WIDTH = 32 * 12
-HEIGHT = 32 * 6
-LINE_WIDTH = 5
+WIDTH = 32 * 12  # width of the window
+HEIGHT = 32 * 6  # height of the window
+LINE_WIDTH = 5  # width of the pen
+LINE_RESOLUTION = 5  # minimum length of line segment; larger means more accurate angles but rougher lines
+ANGLE_THRESHOLD = 60  # minimum angle to begin a new phoneme
 
 # UI and phoneme recorder for Gregg recognition tool
 class Gregg(object):
@@ -48,6 +51,8 @@ class Gregg(object):
 
         # clear phonemes
         self.phoneme_list = []
+        self.current_phoneme = []
+        self.current_phoneme
 
     # interpret the phonemes
     # TODO: use neural nets to distinguish phonemes
@@ -60,36 +65,55 @@ class Gregg(object):
 
     # start a new phoneme when the mouse is pressed
     def mouse_down(self, event):
-        self.phoneme_list.append('new')
-        self.phoneme_list.append((event.x, event.y))
+        self.current_phoneme = [(event.x, event.y)]
 
         # draw a dot in case the button is immediately lifted
         self.x_prev = event.x
         self.y_prev = event.y
+        self.prev_dir = None
         self.canvas.create_line(event.x, event.y, event.x, event.y,
                                 width=LINE_WIDTH, fill='black',
                                 capstyle=ROUND, smooth=TRUE, splinesteps=36)
 
     # draw and record the coordinates of mouse movements
-    # TODO: check for new phonemes while moving (i.e. circles, semi-circles, or angles)
+    # TODO: check for new phonemes while moving (i.e. circles, semi-circles, etc.)
     def mouse_move(self, event):
-        self.phoneme_list.append((event.x, event.y))
-        self.canvas.create_line(self.x_prev, self.y_prev, event.x, event.y,
-                                width=LINE_WIDTH, fill='black',
-                                capstyle=ROUND, smooth=TRUE, splinesteps=36)
-        self.x_prev = event.x
-        self.y_prev = event.y
+        if abs(event.x - self.x_prev) > LINE_RESOLUTION or abs(event.y - self.y_prev) > LINE_RESOLUTION:
+            # create new phoneme on a sharp bend
+            dir = math.atan2((self.x_prev - event.x), (self.y_prev - event.y))
+            dir = 180 / math.pi * -dir
+            if self.prev_dir:
+                diff = dir - self.prev_dir
+                if diff > 180: diff -= 360 
+                if diff < -180: diff += 360
+                if abs(diff) >= ANGLE_THRESHOLD:
+                    # we've encountered a sharp bend; create a new phoneme
+                    self.draw_phonemes()
+            self.prev_dir = dir
+
+            # draw the movement to the canvas and record it in the current phoneme
+            self.current_phoneme.append((event.x, event.y))
+            self.canvas.create_line(self.x_prev, self.y_prev, event.x, event.y,
+                                    width=LINE_WIDTH, fill='black',
+                                    capstyle=ROUND, smooth=TRUE, splinesteps=36)
+            self.x_prev = event.x
+            self.y_prev = event.y
 
     # draw the current phonemes in alternating colors
-    # TODO: make the lines connected
     def draw_phonemes(self, event=None):
+        # add the current phoneme
+        self.phoneme_list.append(self.current_phoneme)
+        self.current_phoneme = self.current_phoneme[-1:]
+
+        # draw phonemes while cycling through colors
         colors = ['navy', 'blue', 'light blue']
         color_index = 0
-        for item in self.phoneme_list:
-            if item == 'new':
-                color_index = (color_index + 1) % len(colors)
-            else:
-                self.canvas.create_line(item[0], item[1], item[0], item[1],
+        for phoneme in self.phoneme_list:
+            color_index = (color_index + 1) % len(colors)
+            for index in range(len(phoneme)):
+                x_prev = phoneme[index - 1][0] if index > 0 else phoneme[index][0]
+                y_prev = phoneme[index - 1][1] if index > 0 else phoneme[index][1]
+                self.canvas.create_line(x_prev, y_prev, phoneme[index][0], phoneme[index][1],
                         width=LINE_WIDTH, fill=colors[color_index],
                         capstyle=ROUND, smooth=TRUE, splinesteps=36)
 
