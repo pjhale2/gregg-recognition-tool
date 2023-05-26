@@ -6,7 +6,9 @@ WIDTH = 32 * 12  # width of the window
 HEIGHT = 32 * 6  # height of the window
 LINE_WIDTH = 5  # width of the pen
 LINE_RESOLUTION = 5  # minimum length of line segment; larger means more accurate angles but rougher lines
-ANGLE_THRESHOLD = 60  # minimum angle to begin a new phoneme
+ANGLE_THRESHOLD = 70  # minimum angle to begin a new phoneme
+LOOP_THRESHOLD = 3  # moving the pen this close to a coordinate already in the phoneme counts as creating a loop
+LOOP_LENGTH = 3 # minimum unwound length of a loop (in LINE_RESOLUTIONs)
 
 # UI and phoneme recorder for Gregg recognition tool
 class Gregg(object):
@@ -32,7 +34,7 @@ class Gregg(object):
         # bind left mouse button for drawing
         self.canvas.bind('<Button-1>', self.mouse_down)
         self.canvas.bind('<B1-Motion>', self.mouse_move)
-        self.canvas.bind('<ButtonRelease-1>', self.draw_phonemes)
+        self.canvas.bind('<ButtonRelease-1>', self.add_current_phoneme)
 
         # run UI loop
         self.window.mainloop()
@@ -71,6 +73,8 @@ class Gregg(object):
         self.x_prev = event.x
         self.y_prev = event.y
         self.prev_dir = None
+        self.since_loop = 0
+        self.loop_in_phoneme = False
         self.canvas.create_line(event.x, event.y, event.x, event.y,
                                 width=LINE_WIDTH, fill='black',
                                 capstyle=ROUND, smooth=TRUE, splinesteps=36)
@@ -88,8 +92,26 @@ class Gregg(object):
                 if diff < -180: diff += 360
                 if abs(diff) >= ANGLE_THRESHOLD:
                     # we've encountered a sharp bend; create a new phoneme
-                    self.draw_phonemes()
+                    self.add_current_phoneme()
             self.prev_dir = dir
+
+            # check if we're in a loop (i.e. we see a pixel we've already written to the current phoneme)
+            self.since_loop += 1
+            if len(self.current_phoneme) > LOOP_LENGTH:
+                for index in range(len(self.current_phoneme) - LOOP_LENGTH):
+                    if (abs(event.x - self.current_phoneme[index][0]) <= LOOP_THRESHOLD 
+                            and abs(event.y - self.current_phoneme[index][1]) <= LOOP_THRESHOLD
+                            and self.since_loop > LOOP_LENGTH):
+                        self.since_loop = 0
+                        self.loop_in_phoneme = True
+                        
+                        # splice the current phoneme into two
+                        if index > LOOP_THRESHOLD:
+                            self.phoneme_list.append(self.current_phoneme[0:index + 1])
+                        self.current_phoneme = self.current_phoneme[index:]
+                        self.add_current_phoneme()
+                        self.current_phoneme = []
+                        return
 
             # draw the movement to the canvas and record it in the current phoneme
             self.current_phoneme.append((event.x, event.y))
@@ -99,13 +121,15 @@ class Gregg(object):
             self.x_prev = event.x
             self.y_prev = event.y
 
-    # draw the current phonemes in alternating colors
-    def draw_phonemes(self, event=None):
-        # add the current phoneme
-        self.phoneme_list.append(self.current_phoneme)
-        self.current_phoneme = self.current_phoneme[-1:]
+    # add the current phoneme to the phoneme list
+    def add_current_phoneme(self, event=None):
+        if self.current_phoneme and (not self.loop_in_phoneme or len(self.current_phoneme) > LOOP_THRESHOLD):
+            self.phoneme_list.append(self.current_phoneme)
+            self.current_phoneme = self.current_phoneme[-1:]
+        self.draw_phonemes()
 
-        # draw phonemes while cycling through colors
+    # draw the current phonemes in alternating colors
+    def draw_phonemes(self):
         colors = ['navy', 'blue', 'light blue']
         color_index = 0
         for phoneme in self.phoneme_list:
