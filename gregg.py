@@ -1,14 +1,24 @@
+import os
 import math
+import PIL.Image
+import PIL.ImageDraw
+import time
 import tkinter as tk
 from tkinter import *
 
 WIDTH = 32 * 12  # width of the window
 HEIGHT = 32 * 6  # height of the window
+
 LINE_WIDTH = 5  # width of the pen
 LINE_RESOLUTION = 5  # minimum length of line segment; larger means more accurate angles but rougher lines
+
 ANGLE_THRESHOLD = 70  # minimum angle to begin a new phoneme
 LOOP_THRESHOLD = 3  # moving the pen this close to a coordinate already in the phoneme counts as creating a loop
-LOOP_LENGTH = 3 # minimum unwound length of a loop (in LINE_RESOLUTIONs)
+LOOP_LENGTH = 3  # minimum unwound length of a loop (in LINE_RESOLUTIONs)
+
+DATA_PATH = './data/'  # default data directory
+DATA_WIDTH = 32 * 5  # width of saved training data
+DATA_HEIGHT = 32 * 5  # height of saved training data
 
 # UI and phoneme recorder for Gregg recognition tool
 class Gregg(object):
@@ -25,7 +35,7 @@ class Gregg(object):
         self.interpret_button.pack(side='left')
         self.speak_button = Button(self.frame, text='speak', command=self.speak)
         self.speak_button.pack(side='left')
-        self.train_button = Button(self.frame, text='train', command=lambda:self.open_label_enter(0))
+        self.train_button = Button(self.frame, text='train', command=self.label_word)
         self.train_button.pack(side='left')
 
         # set up canvas
@@ -37,6 +47,9 @@ class Gregg(object):
         self.canvas.bind('<Button-1>', self.mouse_down)
         self.canvas.bind('<B1-Motion>', self.mouse_move)
         self.canvas.bind('<ButtonRelease-1>', self.add_current_phoneme)
+
+        # bind 't' key to train button
+        self.window.bind('t', self.label_word)
 
         # run UI loop
         self.window.mainloop()
@@ -145,19 +158,55 @@ class Gregg(object):
                 
     # create a popup window to enter training labels
     def open_label_enter(self, label_num):
-        label_window = Toplevel(self.window)
-        directions_label = Label(label_window, text=f'Label for phoneme {label_num}:')
+        self.label_window = Toplevel(self.window)
+        directions_label = Label(self.label_window, text=f'Label for phoneme {label_num}:')
         directions_label.pack(side='top')
-        label_entry = Entry(label_window)
-        label_entry.pack(side='top', fill='x')
-        label_entry.focus_set()
-        label_entry.bind('<Return>', lambda event, label_window=label_window: self.close_label_enter(label_window))
-        enter_button = Button(label_window, text="Enter", command=lambda:self.close_label_enter(label_window))
+        self.label_entry = Entry(self.label_window)
+        self.label_entry.pack(side='top', fill='x')
+        self.label_entry.focus_set()
+        self.label_entry.bind('<Return>', lambda event, label_window=self.label_window: self.close_label_enter(label_window))
+        enter_button = Button(self.label_window, text="Enter", command=lambda:self.close_label_enter(self.label_window))
         enter_button.pack(side='bottom')
 
     # close the label entry popup window
     def close_label_enter(self, window, event=None):
+        self.label = self.label_entry.get()
         window.destroy()
+
+    # subtract two tuples
+    def sub_tuples(self, a, b):
+        return (a[0] - b[0], a[1] - b[1])
+
+    # prompt the user to enter label data for each phoneme in a word
+    def label_word(self, event=None):
+        for index in range(len(self.phoneme_list)):
+            # get the position of the phoneme
+            phoneme_x = min(coords[0] for coords in self.phoneme_list[index])
+            phoneme_y = min(coords[1] for coords in self.phoneme_list[index])
+            phoneme_coords = (phoneme_x, phoneme_y)
+
+            # construct an image of the phoneme
+            phoneme_image = PIL.Image.new('RGB', (DATA_WIDTH, DATA_HEIGHT), color='white')
+            phoneme_draw = PIL.ImageDraw.Draw(phoneme_image)
+            first_coords = self.sub_tuples(self.phoneme_list[index][0], phoneme_coords)
+            if len(self.phoneme_list[index]) == 1:
+                phoneme_draw.ellipse([first_coords, (first_coords[0] + LINE_WIDTH, first_coords[1] + LINE_WIDTH)], fill='black', width=LINE_WIDTH)
+            phoneme_draw.line([self.sub_tuples(coords, phoneme_coords) for coords in self.phoneme_list[index]], fill='black', width=LINE_WIDTH, joint='curve')
+
+            # prompt the user for a label
+            self.open_label_enter(index + 1)
+            self.window.wait_window(self.label_window)
+
+            # make sure the directory for the label exists
+            if not os.path.exists(DATA_PATH + self.label):
+                os.makedirs(DATA_PATH + self.label)
+
+            # store the image in the  in the directory
+            filename = str(time.time()) + '.jpg'
+            phoneme_image.save(DATA_PATH + self.label + '/' + filename)
+            print(f'saved {filename}')
+
+        self.clear()
 
 # start Gregg recognition tool
 if __name__ == '__main__':
