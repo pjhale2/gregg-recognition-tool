@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 DATA_PATH = './data/'  # default data directory
-DEVICE = "cpu"  # device on which to run the net
+DEVICE = 'cpu'  # device on which to run the net
 
 # load the dataset
 def get_data():
@@ -65,5 +65,5 @@ def train(net, dataloader, epochs=1, lr=0.01, momentum=0.9, decay=0.0005, verbos
 # train the model
 if __name__ == '__main__':
     net = SoftmaxModel()
-    losses = train(net, get_data(), epochs=100)
+    losses = train(net, get_data(), epochs=60)
     plt.plot(losses)

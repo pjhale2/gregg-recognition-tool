@@ -14,7 +14,7 @@ WIDTH = 32 * 12  # width of the window
 HEIGHT = 32 * 6  # height of the window
 
 LINE_WIDTH = 5  # width of the pen
-LINE_RESOLUTION = 5  # minimum length of line segment; larger means more accurate angles but rougher lines
+LINE_RESOLUTION = 5  # minimum length of line segment (larger means more accurate angles but rougher lines)
 
 ANGLE_THRESHOLD = 70  # minimum angle to begin a new phoneme
 LOOP_THRESHOLD = 2  # moving the pen this close to a coordinate already in the phoneme counts as creating a loop
@@ -24,7 +24,7 @@ DATA_PATH = './data/'  # default data directory
 DATA_WIDTH = 128  # width of saved training data
 DATA_HEIGHT = 128  # height of saved training data
 
-DEVICE = "cpu"  # device on which to run the net
+DEVICE = 'cpu'  # device on which to run the net
 
 # UI and phoneme recorder for Gregg recognition tool
 class Gregg(object):
@@ -35,13 +35,13 @@ class Gregg(object):
         # set up buttons
         self.frame = Frame(self.window)
         self.frame.pack(side=tk.TOP, fill='x')
-        self.clear_button = Button(self.frame, text='clear', command=self.clear)
+        self.clear_button = Button(self.frame, text='Clear', command=self.clear)
         self.clear_button.pack(side='left')
-        self.interpret_button = Button(self.frame, text='interpret', command=self.interpret)
+        self.interpret_button = Button(self.frame, text='Interpret', command=self.interpret)
         self.interpret_button.pack(side='left')
-        self.speak_button = Button(self.frame, text='speak', command=self.speak)
+        self.speak_button = Button(self.frame, text='Speak', command=self.speak)
         self.speak_button.pack(side='left')
-        self.train_button = Button(self.frame, text='train', command=self.label_word)
+        self.train_button = Button(self.frame, text='Train', command=self.label_word)
         self.train_button.pack(side='left')
 
         # set up canvas
@@ -54,7 +54,8 @@ class Gregg(object):
         self.canvas.bind('<B1-Motion>', self.mouse_move)
         self.canvas.bind('<ButtonRelease-1>', self.add_current_phoneme)
 
-        # bind 't' key to train button
+        # bind hotkeys
+        self.window.bind('c', self.clear)
         self.window.bind('t', self.label_word)
 
         # get the net
@@ -65,7 +66,7 @@ class Gregg(object):
         self.window.mainloop()
 
     # clear the canvas and the current word in memory
-    def clear(self):
+    def clear(self, event=None):
         self.canvas.delete('all')
 
         # draw grid lines
@@ -179,7 +180,7 @@ class Gregg(object):
         self.label_entry.pack(side='top', fill='x')
         self.label_entry.focus_set()
         self.label_entry.bind('<Return>', lambda event, label_window=self.label_window: self.close_label_enter(label_window))
-        enter_button = Button(self.label_window, text="Enter", command=lambda:self.close_label_enter(self.label_window))
+        enter_button = Button(self.label_window, text='Enter', command=lambda:self.close_label_enter(self.label_window))
         enter_button.pack(side='bottom')
 
     # close the label entry popup window
