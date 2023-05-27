@@ -2,6 +2,7 @@ import os
 import math
 import PIL.Image
 import PIL.ImageDraw
+import pyttsx3
 import time
 import tkinter as tk
 from tkinter import *
@@ -25,6 +26,8 @@ DATA_WIDTH = 128  # width of saved training data
 DATA_HEIGHT = 128  # height of saved training data
 
 DEVICE = 'cpu'  # device on which to run the net
+
+PHONEMES = ['ay', 'd', 'ee', 'f', 'h', 'l', 'm', 'n', 'o', 'r', 's', 't', 'v']  # possible phonemes (in data order)
 
 # UI and phoneme recorder for Gregg recognition tool
 class Gregg(object):
@@ -65,6 +68,10 @@ class Gregg(object):
         # run UI loop
         self.window.mainloop()
 
+    # get a phoneme based on its number
+    def get_phoneme(self, num):
+        return PHONEMES[num]
+
     # clear the canvas and the current word in memory
     def clear(self, event=None):
         self.canvas.delete('all')
@@ -82,18 +89,28 @@ class Gregg(object):
         self.current_phoneme = []
         self.current_phoneme
 
-    # interpret the phonemes
-    # TODO: use neural nets to distinguish phonemes
+    # use a neural net to predict the phonemes
     def interpret(self):
+        # get predicitons for phonemes
         images = [transforms.ToTensor()(image).unsqueeze_(0) for image in self.get_images()]
         outputs = [self.net(image) for image in images]
-        predictions = [torch.max(output, 1) for output in outputs]
-        print(outputs)
-        print(predictions)
+        self.predictions = [torch.max(output, 1) for output in outputs]
 
-    # TODO: speak phonemes aloud
+        # convert predictions to letters
+        self.predictions = [prediction[1].item() for prediction in self.predictions]
+        self.predictions = [self.get_phoneme(prediction) for prediction in self.predictions]
+        print(self.predictions)
+
+    # speak phonemes aloud
     def speak(self):
-        pass
+        self.interpret()
+        try:
+            engine = pyttsx3.init()
+            engine.say(''.join(self.predictions))
+            engine.runAndWait()
+        except:
+            print('Cannot find text to speech engine.')
+
 
     # start a new phoneme when the mouse is pressed
     def mouse_down(self, event):
