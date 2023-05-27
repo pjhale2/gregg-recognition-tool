@@ -5,6 +5,10 @@ import PIL.ImageDraw
 import time
 import tkinter as tk
 from tkinter import *
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+from train import SoftmaxModel
 
 WIDTH = 32 * 12  # width of the window
 HEIGHT = 32 * 6  # height of the window
@@ -13,12 +17,14 @@ LINE_WIDTH = 5  # width of the pen
 LINE_RESOLUTION = 5  # minimum length of line segment; larger means more accurate angles but rougher lines
 
 ANGLE_THRESHOLD = 70  # minimum angle to begin a new phoneme
-LOOP_THRESHOLD = 3  # moving the pen this close to a coordinate already in the phoneme counts as creating a loop
+LOOP_THRESHOLD = 2  # moving the pen this close to a coordinate already in the phoneme counts as creating a loop
 LOOP_LENGTH = 3  # minimum unwound length of a loop (in LINE_RESOLUTIONs)
 
 DATA_PATH = './data/'  # default data directory
-DATA_WIDTH = 32 * 5  # width of saved training data
-DATA_HEIGHT = 32 * 5  # height of saved training data
+DATA_WIDTH = 128  # width of saved training data
+DATA_HEIGHT = 128  # height of saved training data
+
+DEVICE = "cpu"  # device on which to run the net
 
 # UI and phoneme recorder for Gregg recognition tool
 class Gregg(object):
@@ -51,6 +57,10 @@ class Gregg(object):
         # bind 't' key to train button
         self.window.bind('t', self.label_word)
 
+        # get the net
+        self.net = torch.load('./net.pkl')
+        self.net.eval()
+
         # run UI loop
         self.window.mainloop()
 
@@ -74,7 +84,11 @@ class Gregg(object):
     # interpret the phonemes
     # TODO: use neural nets to distinguish phonemes
     def interpret(self):
-        print(self.phoneme_list)
+        images = [transforms.ToTensor()(image).unsqueeze_(0) for image in self.get_images()]
+        outputs = [self.net(image) for image in images]
+        predictions = [torch.max(output, 1) for output in outputs]
+        print(outputs)
+        print(predictions)
 
     # TODO: speak phonemes aloud
     def speak(self):
@@ -176,9 +190,11 @@ class Gregg(object):
     # subtract two tuples
     def sub_tuples(self, a, b):
         return (a[0] - b[0], a[1] - b[1])
+    
+    # get the phoneme images for the current word
+    def get_images(self):
+        images = []
 
-    # prompt the user to enter label data for each phoneme in a word
-    def label_word(self, event=None):
         for index in range(len(self.phoneme_list)):
             # get the position of the phoneme
             phoneme_x = min(coords[0] for coords in self.phoneme_list[index])
@@ -192,7 +208,14 @@ class Gregg(object):
             if len(self.phoneme_list[index]) == 1:
                 phoneme_draw.ellipse([first_coords, (first_coords[0] + LINE_WIDTH, first_coords[1] + LINE_WIDTH)], fill='black', width=LINE_WIDTH)
             phoneme_draw.line([self.sub_tuples(coords, phoneme_coords) for coords in self.phoneme_list[index]], fill='black', width=LINE_WIDTH, joint='curve')
+            images.append(phoneme_image)
 
+        return images
+
+    # prompt the user to enter label data for each phoneme in a word
+    def label_word(self, event=None):
+        images = self.get_images()
+        for index in len(images):
             # prompt the user for a label
             self.open_label_enter(index + 1)
             self.window.wait_window(self.label_window)
@@ -203,7 +226,7 @@ class Gregg(object):
 
             # store the image in the  in the directory
             filename = str(time.time()) + '.jpg'
-            phoneme_image.save(DATA_PATH + self.label + '/' + filename)
+            images[index].save(DATA_PATH + self.label + '/' + filename)
             print(f'saved {filename}')
 
         self.clear()
