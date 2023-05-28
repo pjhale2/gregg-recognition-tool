@@ -20,6 +20,7 @@ def get_data():
     loader = torch.utils.data.DataLoader(dataset, batch_size=128, shuffle=True, num_workers=2)
     return loader
 
+# simple softmax model that actually performs pretty well on this small dataset
 class SoftmaxModel(nn.Module):
     def __init__(self, inputs=128*128*3, outputs=13):
         super(SoftmaxModel, self).__init__()
@@ -30,6 +31,34 @@ class SoftmaxModel(nn.Module):
         x = self.fc1(x)
         return x        # return unnormalized probabilities
     
+# more complex convolutional neural network
+class ConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        # 128x128x3 -> 64x64x16
+        self.conv1 = nn.Conv2d(3, 16, 3, stride=2, padding=1)
+
+        # 64x64x16->32x32x32
+        self.conv2 = nn.Conv2d(16, 32, 3, stride=2, padding=1)
+
+        # 32x32x32->16x16x64
+        self.conv3 = nn.Conv2d(32, 64, 3, stride=2, padding=1)
+
+        # 16x16x64->1x13
+        self.fc1 = nn.Linear(16384, 13)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        return x
+    
+# train the chosen neural net
 def train(net, dataloader, epochs=1, lr=0.01, momentum=0.9, decay=0.0005, verbose=1):
     net.to(DEVICE)
     losses = []
@@ -59,11 +88,12 @@ def train(net, dataloader, epochs=1, lr=0.01, momentum=0.9, decay=0.0005, verbos
             sum_loss = 0.0
 
     # save network state and return
-    torch.save(net, './net.pkl')
+    torch.save(net, './conv_net.pkl')
     return losses
 
 # train the model
 if __name__ == '__main__':
-    net = SoftmaxModel()
+    # net = SoftmaxModel()
+    net = ConvNet()
     losses = train(net, get_data(), epochs=60)
     plt.plot(losses)

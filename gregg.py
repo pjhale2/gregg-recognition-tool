@@ -9,6 +9,7 @@ from tkinter import *
 import torch
 import torchvision.transforms as transforms
 from train import SoftmaxModel
+from train import ConvNet
 
 WIDTH = 32 * 12  # width of the window
 HEIGHT = 32 * 6  # height of the window
@@ -25,6 +26,7 @@ DATA_WIDTH = 128  # width of saved training data
 DATA_HEIGHT = 128  # height of saved training data
 PHONEMES = ['ay', 'd', 'ee', 'f', 'h', 'l', 'm', 'n', 'o', 'r', 's', 't', 'v']  # possible phonemes (in data order)
 
+NET = './conv_net.pkl'  # neural network to run
 DEVICE = 'cpu'  # device on which to run the net
 
 # UI and phoneme recorder for Gregg recognition tool
@@ -62,7 +64,7 @@ class Gregg(object):
         self.window.bind('l', self.label_word)
 
         # get the net
-        self.net = torch.load('./net.pkl')
+        self.net = torch.load(NET)
         self.net.eval()
 
         # run UI loop
