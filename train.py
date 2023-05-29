@@ -1,9 +1,6 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import numpy as np
-import matplotlib.pyplot as plt
-
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -96,4 +93,3 @@ if __name__ == '__main__':
     # net = SoftmaxModel()
     net = ConvNet()
     losses = train(net, get_data(), epochs=60)
-    plt.plot(losses)
